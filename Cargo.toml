@@ -8,6 +8,9 @@ edition = "2021"
 [dependencies]
 dioxus = "0.4.3"
 dioxus-fullstack = "0.4.3"
+dioxus-logger = "0.4.1"
+log = "0.4.20"
+serde = "1.0.193"
 
 [features]
 default = []

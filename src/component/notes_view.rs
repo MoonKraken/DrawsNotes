@@ -1,10 +1,21 @@
 use dioxus::prelude::*;
 use dioxus_fullstack::prelude::*;
-pub fn NotesView(cx: Scope) -> Element {
-    cx.render(rsx! {
-        h1 {
-            class: "text-red-800",
-            "notes view"
+
+use crate::model::note::Note;
+#[component]
+pub fn NotesView(cx: Scope, selected_note: UseState<Option<Note>>) -> Element {
+    return if let Some(note) = selected_note.get() {
+        render! {
+            div {
+                class:"flex-grow h-full bg-gray-400",
+                "{note.content}"
+            }
         }
-    })
+    } else {
+        render! {
+            div {
+                "Select a note!"
+            }
+        }
+    }
 }
