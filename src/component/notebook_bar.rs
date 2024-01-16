@@ -33,7 +33,7 @@ pub fn NotebookBar<'a>(
     };
 
     match notebooks.value() {
-        Some(Ok(list)) => cx.render(rsx! {
+        Some(Ok(list)) => render! {
             div {
                 class: "flex flex-col justify-end h-full",
                 div {
@@ -56,7 +56,7 @@ pub fn NotebookBar<'a>(
                                         onkeydown: submit_notebook,
                                         oninput: move |evt| {
                                             log::info!("oninput");
-                                            new_notebook_name.set(evt.value().clone())
+                                            new_notebook_name.set(evt.value.clone())
                                         },
                                     }
                                 },
@@ -72,37 +72,7 @@ pub fn NotebookBar<'a>(
                     "add a notebook"
                 }
             }
-        }),
+        },
         _ => render! {"loading"},
     }
-}
-
-#[component]
-pub fn Thing<F>(
-    cx: Scope,
-    notebooks: Vec<Notebook>,
-    selected_notebook: UseState<Option<Notebook>>,
-    notebook_added_callback: F,
-) -> Element
-where
-    F: Fn() -> (),
-{
-    let new_notebook_name: &UseState<String> = use_state(cx, || "".to_string());
-    let creating_notebook = use_state(cx, || false);
-    let submit_notebook = move |ev: Event<KeyboardData>| {
-        if ev.key() == Key::Enter {
-            log::info!("onkeydown");
-            cx.spawn({
-                creating_notebook.set(false);
-
-                async move {
-                    // upsert_notebook(None, new_notebook_name.get().to_string()).await;
-                    // notebook_added_callback();
-                }
-            });
-        }
-    };
-    render! (div {
-    "{new_notebook_name}"
-    })
 }

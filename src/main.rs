@@ -2,7 +2,7 @@
 use lazy_static::lazy_static;
 use std::{
     collections::{HashMap, HashSet},
-    sync::{RwLock, RwLockWriteGuard},
+    sync::{RwLock, RwLockWriteGuard}, time::Duration,
 };
 
 use crate::component::{notebook_bar::NotebookBar, notes_bar::NotesBar, notes_view::NotesView};
@@ -25,6 +25,7 @@ lazy_static! {
 
 #[server]
 async fn upsert_note(note: Note, notebook_id: String) -> Result<String, ServerFnError> {
+    log::info!("upserting note {:?}", &note);
     use uuid::Uuid;
     let id = if note.id == "" {
         Uuid::new_v4().to_string()
@@ -35,12 +36,12 @@ async fn upsert_note(note: Note, notebook_id: String) -> Result<String, ServerFn
     {
         let mut notes: RwLockWriteGuard<HashMap<String, HashMap<String, Note>>> = NOTES.write()?;
         notes
-            .entry(notebook_id)
+            .entry(notebook_id.to_string())
             .or_insert_with(HashMap::new)
-            .entry(id.clone())
-            .or_insert_with(|| Note {
+            .insert(id.clone(), Note {
                 id: id.clone(),
-                ..note
+                title: note.title,
+                content: note.content,
             });
     }
 
@@ -88,13 +89,16 @@ async fn delete_notebook(notebook: Notebook) -> Result<(), ServerFnError> {
 
 #[server]
 async fn get_notebooks() -> Result<Vec<Notebook>, ServerFnError> {
+    tokio::time::sleep(Duration::from_millis(1000));
     let notebooks = NOTEBOOKS.read()?;
     Ok(notebooks.clone().into_iter().collect())
 }
 
 #[server]
 async fn get_note_summaries(notebook_id: String) -> Result<Vec<Note>, ServerFnError> {
+    tokio::time::sleep(Duration::from_millis(1000));
     let notes = NOTES.read()?;
+    log::info!("loaded note summaries: {:?}", &notes);
     Ok(notes
         .get(&notebook_id)
         .ok_or(ServerFnError::ServerError("note found".to_string()))?
@@ -136,7 +140,7 @@ fn app(cx: Scope) -> Element {
     let notebooks: &UseFuture<Result<Vec<Notebook>, ServerFnError>> =
         use_future(cx, (), |_| get_notebooks());
     let mut selected_notebook: &UseState<Option<Notebook>> = use_state(cx, || None);
-    let mut selected_note: &UseState<Option<Note>> = use_state(cx, || None);
+    let mut selected_note = use_state(cx, || None);
     let mut note_summaries: &UseState<Option<Vec<Note>>> = use_state(cx, || None);
 
     let mut note_summaries: &UseFuture<Result<Vec<Note>, ServerFnError>> = use_future(
@@ -145,13 +149,21 @@ fn app(cx: Scope) -> Element {
         |selected_notebook| async move {
             if let Some(selected_notebook) = selected_notebook.current().as_ref() {
                 let res = get_note_summaries(selected_notebook.id.clone()).await;
-                log::info!("{res:?}");
                 res
             } else {
                 Ok(vec![])
             }
         },
     );
+
+    use_effect(cx, (selected_notebook,), |(selected_notebook,)| {
+        to_owned!(selected_note);
+        log::info!("selected_notebook effect!!!!!");
+        async move {
+            selected_note.set(None);
+            log::info!("selected note set to None");
+        }
+    });
 
     render! {
         div {
@@ -167,6 +179,8 @@ fn app(cx: Scope) -> Element {
             },
             NotesView {
                 selected_note: selected_note.clone(),
+                selected_notebook: selected_notebook.clone(),
+                note_summaries: note_summaries,
             }
         }
     }

@@ -12,7 +12,7 @@ pub fn NotesBar<'a>(
     //apparently this is a double reference for reasons i don't fully understand
     let note_summaries = *note_summaries;
     if let (Some(Ok(summaries)), Some(selected_notebook)) = (
-        note_summaries.value().as_ref().clone(),
+        note_summaries.value().as_ref(),
         selected_notebook.current().as_ref().clone(),
     ) {
         render! {
