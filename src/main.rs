@@ -97,7 +97,6 @@ async fn upsert_note(note: Note) -> Result<String, ServerFnError> {
 
 #[server]
 async fn upsert_notebook(notebook: Notebook) -> Result<String, ServerFnError> {
-    use crate::model::notebook::NotebookDB;
     log::info!("upserting notebook {:?}", &notebook);
     let con = DB.get().await;
     let res: Result<Vec<Record>, _> = con.create(NOTEBOOK_TABLE).content(notebook).await;
@@ -138,17 +137,22 @@ async fn delete_notebook(notebook: Notebook) -> Result<(), ServerFnError> {
 async fn get_notebooks() -> Result<Vec<Notebook>, ServerFnError> {
     // do we still need this ? this is to get around a dioxus bug
     // tokio::time::sleep(Duration::from_millis(1000));
-
-    use crate::model::notebook::NotebookDB;
     log::info!("get notebooks");
     let con = DB.get().await;
-    let res: Result<Vec<NotebookDB>, _> = con.select(NOTEBOOK_TABLE).await;
+    let mut res: surrealdb::Response = con
+        .query("SELECT type::string(id) as id, name FROM type::table($table)")
+        .bind(("table", NOTEBOOK_TABLE))
+        .await
+        .expect("issue on await");
+        // .take(0)
+        // .expect("issue on take");
+
+    let res: Result<Vec<Notebook>, _> = res.take(0);
 
     match res {
-        Ok(notebooks) => Ok(notebooks
-            .into_iter()
-            .map(|notebook| notebook.into())
-            .collect()),
+        Ok(notebooks) => {
+            notebooks.iter().for_each(|notebook| log::error!("{:?}", notebook));
+            Ok(notebooks)},
         Err(e) => {
             log::error!("error getting notebooks {:?}", e);
             Err(e.into())
@@ -162,14 +166,14 @@ async fn get_note_summaries(notebook_id: String) -> Result<Vec<Note>, ServerFnEr
     tokio::time::sleep(Duration::from_millis(1000));
 
     log::info!("getting summaries for notebook {}", notebook_id);
-    use crate::model::note::NoteDB;
     use std::str::FromStr;
     let con = DB.get().await;
-    let noteobook_thing = Thing::from_str(&notebook_id)
+    let notebook_thing = Thing::from_str(&notebook_id)
         .map_err(|_| ServerFnError::ServerError("error making thing".to_string()))?;
-    let res: Vec<NoteDB> = con
-        .query("SELECT * FROM type::table($table) WHERE notebook=type::thing($notebook_id);")
+    let res: Vec<Note> = con
+        .query("SELECT type::string(id) as id, title, content, $notebook_id as notebook FROM type::table($table) WHERE notebook=type::thing($notebook_thing);")
         .bind(("table", NOTE_TABLE))
+        .bind(("notebook_thing", notebook_thing))
         .bind(("notebook_id", notebook_id))
         .await
         .expect("issue on await")
