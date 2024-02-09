@@ -12,7 +12,7 @@ pub fn NotebookBar<'a>(
     let new_notebook_name: &UseState<String> = use_state(cx, || "".to_string());
     let creating_notebook = use_state(cx, || false);
 
-    //apparently this is s double reference for reasons i don't fully understand
+    //apparently this is a double reference for reasons i don't fully understand
     let notebooks: &UseFuture<Result<Vec<Notebook>, ServerFnError>> = *notebooks;
 
     let submit_notebook = move |ev: Event<KeyboardData>| {
@@ -25,7 +25,11 @@ pub fn NotebookBar<'a>(
                 creating_notebook.set(false);
 
                 async move {
-                    let _ = upsert_notebook(None, new_notebook_name.current().to_string()).await;
+                    let _ = upsert_notebook(Notebook {
+                        id: None,
+                        name: new_notebook_name.current().to_string(),
+                    })
+                    .await;
                     notebooks.restart();
                 }
             });

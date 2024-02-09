@@ -33,6 +33,7 @@ pub fn NotesView<'a>(
                             title: evt.value.clone(),
                             id: note2.id,
                             content: note2.content,
+                            notebook: note2.notebook,
                         }));
                     },
                 },
@@ -46,6 +47,7 @@ pub fn NotesView<'a>(
                             title: note3.title,
                             id: note3.id,
                             content: evt.value.clone(),
+                            notebook: note3.notebook,
                         }));
                     },
                 },
@@ -58,7 +60,7 @@ pub fn NotesView<'a>(
                             to_owned!(note_summaries);
                             async move {
                                 log::info!("upserting note... {:?}", &note);
-                                let _ = upsert_note(note.clone(), notebook.id.clone()).await;
+                                let _ = upsert_note(note).await;
                                 note_summaries.restart();
                                 log::info!("note upserted");
                             }

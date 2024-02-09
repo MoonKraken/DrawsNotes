@@ -28,9 +28,11 @@ pub fn NotesBar<'a>(
                                 to_owned!(note_summaries);
                                 async move {
                                     log::info!("upserting...");
-                                    upsert_note(Note::new(), selected_notebook.id).await;
-                                    note_summaries.restart();
-                                    log::info!("upserted.");
+                                    if let Some(notebook_id) = selected_notebook.id {
+                                        upsert_note(Note::new(notebook_id)).await;
+                                        note_summaries.restart();
+                                        log::info!("upserted.");
+                                    }
                                 }
                             })
                         },
