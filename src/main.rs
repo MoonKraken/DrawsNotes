@@ -284,13 +284,14 @@ fn app(cx: Scope) -> Element {
 
     render! {
         div {
-            class: "flex h-screen",
+            class: "flex h-screen text-white",
             NotebookBar {
                 notebooks: notebooks,
                 selected_notebook: selected_notebook.clone(),
             },
             NotesBar {
                 note_summaries: note_summaries,
+                notebooks: notebooks,
                 selected_note: selected_note,
                 selected_notebook: selected_notebook,
             },

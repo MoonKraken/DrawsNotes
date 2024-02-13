@@ -1,7 +1,7 @@
 use dioxus::{html::input_data::keyboard_types::Key, prelude::*};
 use dioxus_fullstack::prelude::*;
 
-use crate::{get_notebooks, model::notebook::Notebook, upsert_notebook};
+use crate::{get_notebooks, model::notebook::Notebook, upsert_notebook, component::counter::Counter};
 
 #[component]
 pub fn NotebookBar<'a>(
@@ -37,13 +37,24 @@ pub fn NotebookBar<'a>(
         }
     };
 
+    const SELECTED_NOTE_STYLE: &str = "flex flex-row bg-gray-900 pl-4";
+    const UNSELECTED_NOTE_STYLE: &str = "flex flex-row pl-4";
+
     let notebooks_list = match notebooks.value() {
         Some(Ok(list)) => rsx! {
             div {
-                class: "flex flex-col justify-h w-[200px] overflow-hidden bg-gray-200 pl-4",
+                class: "flex flex-col justify-h w-[200px] overflow-hidden",
                 for notebook in list {
                     div {
-                        class: "flex flex-row",
+                        class: if let Some(selected) = selected_notebook.current().as_ref() {
+                            if selected.id == notebook.id {
+                                SELECTED_NOTE_STYLE
+                            } else {
+                                UNSELECTED_NOTE_STYLE
+                            }
+                        } else {
+                            UNSELECTED_NOTE_STYLE
+                        },
                         onclick: move |_| {
                             log::info!("notebook onclick");
                             selected_notebook.set(Some(notebook.clone()))
@@ -53,9 +64,9 @@ pub fn NotebookBar<'a>(
                             "{notebook.name}",
                         },
                         div {
-                            class: "pr-2",
+                            class: "pr-2 flex items-center",
                             div {
-                                class: "rounded-full bg-gray-800 text-white",
+                                class: "rounded-full bg-gray-700 text-xs min-w-[20px] h-[20px] flex items-center justify-center",
                                 "{notebook.count.unwrap_or(0)}"
                             }
                         }
@@ -63,7 +74,7 @@ pub fn NotebookBar<'a>(
                 },
                 if (*creating_notebook.get()) {
                     rsx! {
-                        li {
+                        div {
                             input {
                                 value: "{new_notebook_name}",
                                 onkeydown: submit_notebook,
@@ -82,9 +93,18 @@ pub fn NotebookBar<'a>(
 
     render! {
         div {
-            class: "flex flex-col",
+            class: "flex flex-col bg-gray-800 cursor-default",
             div {
-                "All Notes"
+
+                "All Notes",
+                // if let Ok(Some(nb)) = notebooks.value() {
+                //     Counter {
+                //         count: nb.iter().map(|n| n.count).sum()
+                //     }
+                // }
+                Counter {
+                    count:2,
+                }
             },
             div {
                 class: "flex flex-row flex-nowrap",
