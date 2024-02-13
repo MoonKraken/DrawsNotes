@@ -16,6 +16,7 @@ use std::{
 };
 
 use crate::component::{notebook_bar::NotebookBar, notes_bar::NotesBar, notes_view::NotesView};
+use crate::model::notebook::NotebookNoteCount;
 use dioxus::prelude::*;
 use dioxus_fullstack::prelude::{server_fn::error::ServerFnErrorErr, *};
 use log::LevelFilter;
@@ -99,18 +100,26 @@ async fn upsert_note(note: Note) -> Result<String, ServerFnError> {
 async fn upsert_notebook(notebook: Notebook) -> Result<String, ServerFnError> {
     log::info!("upserting notebook {:?}", &notebook);
     let con = DB.get().await;
-    let res: Result<Vec<Record>, _> = con.create(NOTEBOOK_TABLE).content(notebook).await;
 
-    if let Ok(res) = res {
-        match res.first() {
-            Some(Record { id }) => Ok(id.to_string()),
-            _ => Err(ServerFnError::ServerError("couldnt get id".to_string())),
-        }
+    let res: Vec<Record> = if let Some(id) = notebook.id {
+        con.query("UPDATE ONLY type::thing($id) SET name = $name")
+            .bind(("name", notebook.name))
+            .await
+            .expect("issue on await")
+            .take(0)
+            .expect("issue on take")
     } else {
-        log::error!("error upserting notebook");
-        Err(ServerFnError::ServerError(
-            "error upserting notebook".to_string(),
-        ))
+        con.query("CREATE notebook SET name = $name;")
+            .bind(("name", notebook.name))
+            .await
+            .expect("issue on await")
+            .take(0)
+            .expect("issue on take")
+    };
+
+    match res.first() {
+        Some(Record { id }) => Ok(id.to_string()),
+        _ => Err(ServerFnError::ServerError("couldnt get id".to_string())),
     }
 }
 
@@ -139,20 +148,52 @@ async fn get_notebooks() -> Result<Vec<Notebook>, ServerFnError> {
     // tokio::time::sleep(Duration::from_millis(1000));
     log::info!("get notebooks");
     let con = DB.get().await;
+
+    // really don't want this to be two queries, but this seemed like the lesser of evils
     let mut res: surrealdb::Response = con
-        .query("SELECT type::string(id) as id, name FROM type::table($table)")
+        .query("SELECT type::string(id) as id, type::string(name) as name FROM type::table($table)")
         .bind(("table", NOTEBOOK_TABLE))
         .await
         .expect("issue on await");
-        // .take(0)
-        // .expect("issue on take");
 
-    let res: Result<Vec<Notebook>, _> = res.take(0);
+    let mut res: Result<Vec<Notebook>, _> = res.take(0);
 
     match res {
-        Ok(notebooks) => {
-            notebooks.iter().for_each(|notebook| log::error!("{:?}", notebook));
-            Ok(notebooks)},
+        Ok(mut notebooks) => {
+            //now grab the counts
+            let mut counts: surrealdb::Response = con
+                .query("SELECT type::string(notebook) as id, count(id) as count FROM type::table($table) GROUP BY id")
+                .bind(("table", NOTE_TABLE))
+                .await
+                .expect("issue on await");
+
+            let counts: Result<Vec<NotebookNoteCount>, _> = counts.take(0);
+            match counts {
+                Ok(counts) => {
+                    //turn the notebooks into a map from id -> Notebook
+                    let count_map: HashMap<String, NotebookNoteCount> = counts
+                        .into_iter()
+                        .map(|notebook| (notebook.id.clone(), notebook))
+                        .collect();
+
+                    notebooks.iter_mut().for_each(|notebook| {
+                        let id = notebook.id.as_ref();
+                        if let Some(id) = id {
+                            let ct: Option<&NotebookNoteCount> = count_map.get(id);
+                            notebook.count = Some(ct.map(|nbct| nbct.count).unwrap_or(0));
+                        } else {
+                            notebook.count = Some(0);
+                        }
+                    });
+
+                    Ok(notebooks)
+                }
+                Err(e) => {
+                    log::error!("issue getting note counts {:?}", e);
+                    Err(e.into())
+                }
+            }
+        }
         Err(e) => {
             log::error!("error getting notebooks {:?}", e);
             Err(e.into())

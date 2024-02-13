@@ -9,4 +9,11 @@ use surrealdb::sql::Thing;
 pub struct Notebook {
     pub id: Option<String>,
     pub name: String,
+    pub count: Option<u32>,
+}
+
+#[derive(Debug, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
+pub struct NotebookNoteCount {
+    pub id: String,
+    pub count: u32,
 }

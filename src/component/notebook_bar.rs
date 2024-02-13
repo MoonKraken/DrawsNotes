@@ -28,6 +28,7 @@ pub fn NotebookBar<'a>(
                     let _ = upsert_notebook(Notebook {
                         id: None,
                         name: new_notebook_name.current().to_string(),
+                        count: None,
                     })
                     .await;
                     notebooks.restart();
@@ -36,47 +37,70 @@ pub fn NotebookBar<'a>(
         }
     };
 
-    match notebooks.value() {
-        Some(Ok(list)) => render! {
+    let notebooks_list = match notebooks.value() {
+        Some(Ok(list)) => rsx! {
             div {
-                class: "flex flex-col justify-end h-full",
+                class: "flex flex-col justify-h w-[200px] overflow-hidden bg-gray-200 pl-4",
+                for notebook in list {
+                    div {
+                        class: "flex flex-row",
+                        onclick: move |_| {
+                            log::info!("notebook onclick");
+                            selected_notebook.set(Some(notebook.clone()))
+                        },
+                        div {
+                            class: "grow",
+                            "{notebook.name}",
+                        },
+                        div {
+                            class: "pr-2",
+                            div {
+                                class: "rounded-full bg-gray-800 text-white",
+                                "{notebook.count.unwrap_or(0)}"
+                            }
+                        }
+                    }
+                },
+                if (*creating_notebook.get()) {
+                    rsx! {
+                        li {
+                            input {
+                                value: "{new_notebook_name}",
+                                onkeydown: submit_notebook,
+                                oninput: move |evt| {
+                                    log::info!("oninput");
+                                    new_notebook_name.set(evt.value.clone())
+                                },
+                            }
+                        },
+                    }
+                },
+            },
+        },
+        _ => rsx! {"loading"},
+    };
+
+    render! {
+        div {
+            class: "flex flex-col",
+            div {
+                "All Notes"
+            },
+            div {
+                class: "flex flex-row flex-nowrap",
                 div {
-                    class: "w-[200px] overflow-hidden bg-gray-200",
-                    ol {
-                        for notebook in list {
-                            li {
-                                onclick: move |_| {
-                                    log::info!("notebook onclick");
-                                    selected_notebook.set(Some(notebook.clone()))
-                                },
-                                "{notebook.name}"
-                            }
-                        },
-                        if (*creating_notebook.get()) {
-                            rsx! {
-                                li {
-                                    input {
-                                        value: "{new_notebook_name}",
-                                        onkeydown: submit_notebook,
-                                        oninput: move |evt| {
-                                            log::info!("oninput");
-                                            new_notebook_name.set(evt.value.clone())
-                                        },
-                                    }
-                                },
-                            }
-                        },
-                    },
+                    class: "grow",
+                    "Notebooks"
                 },
                 div {
                     onclick: move |_| {
                         creating_notebook.set(true);
                     },
-                    class: "w-full h-8",
-                    "add a notebook"
-                }
-            }
-        },
-        _ => render! {"loading"},
+                    class: "flex-none shrink",
+                    "+"
+                },
+            },
+            notebooks_list,
+        }
     }
 }
