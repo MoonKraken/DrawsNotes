@@ -29,11 +29,6 @@ fn main() {
     LaunchBuilder::new(app).launch();
 }
 
-lazy_static! {
-    static ref NOTES: RwLock<HashMap<String, HashMap<String, Note>>> = RwLock::new(HashMap::new());
-    static ref NOTEBOOKS: RwLock<HashSet<Notebook>> = RwLock::new(HashSet::new());
-}
-
 const NOTE_TABLE: &str = "note";
 const NOTEBOOK_TABLE: &str = "notebook";
 
@@ -202,24 +197,35 @@ async fn get_notebooks() -> Result<Vec<Notebook>, ServerFnError> {
 }
 
 #[server]
-async fn get_note_summaries(notebook_id: String) -> Result<Vec<Note>, ServerFnError> {
+async fn get_note_summaries(notebook_id: Option<String>) -> Result<Vec<Note>, ServerFnError> {
     // do we still need this ? this is to get around a dioxus bug
-    tokio::time::sleep(Duration::from_millis(1000));
+    // tokio::time::sleep(Duration::from_millis(200));
 
-    log::info!("getting summaries for notebook {}", notebook_id);
+    log::info!("getting summaries for notebook {:?}", notebook_id);
     use std::str::FromStr;
     let con = DB.get().await;
-    let notebook_thing = Thing::from_str(&notebook_id)
-        .map_err(|_| ServerFnError::ServerError("error making thing".to_string()))?;
-    let res: Vec<Note> = con
-        .query("SELECT type::string(id) as id, title, content, $notebook_id as notebook FROM type::table($table) WHERE notebook=type::thing($notebook_thing);")
+
+    // probably a way to make this more concise
+    let res: Vec<Note> = if let Some(notebook_id) = notebook_id {
+        let notebook_thing = Thing::from_str(&notebook_id)
+            .map_err(|_| ServerFnError::ServerError("error making thing".to_string()))?;
+        con
+        .query("SELECT type::string(id) as id, title, string::slice(content, 0, 40) as content, type::string(notebook) as notebook FROM type::table($table) WHERE notebook=type::thing($notebook_thing);")
         .bind(("table", NOTE_TABLE))
         .bind(("notebook_thing", notebook_thing))
-        .bind(("notebook_id", notebook_id))
         .await
         .expect("issue on await")
         .take(0)
-        .expect("issue on take");
+        .expect("issue on take")
+    } else {
+        con
+        .query("SELECT type::string(id) as id, title, string::slice(content, 0, 40) as content, type::string(notebook) as notebook FROM type::table($table);")
+        .bind(("table", NOTE_TABLE))
+        .await
+        .expect("issue on await")
+        .take(0)
+        .expect("issue on take")
+    };
 
     log::info!("summaries from db {:?}", &res);
     let res: Vec<Note> = res.into_iter().map(|notedb| notedb.into()).collect();
@@ -230,9 +236,6 @@ async fn get_note_summaries(notebook_id: String) -> Result<Vec<Note>, ServerFnEr
 
 #[server]
 async fn get_note(notebook_id: String, note_id: String) -> Result<Note, ServerFnError> {
-    // do we still need this ? this is to get around a dioxus bug
-    tokio::time::sleep(Duration::from_millis(1000));
-
     let con = DB.get().await;
     let res: Option<Note> = con
         .query("SELECT * FROM $table WHERE notebook=$notebook_id AND id=$note_id")
@@ -246,16 +249,17 @@ async fn get_note(notebook_id: String, note_id: String) -> Result<Note, ServerFn
 }
 
 #[server]
-async fn delete_note(notebook_id: String, note_id: String) -> Result<(), ServerFnError> {
-    let mut notes = NOTES.write()?;
+async fn delete_note(note_id: String) -> Result<(), ServerFnError> {
+    let con = DB.get().await;
 
-    let mut notebook_notes = notes
-        .get_mut(&notebook_id)
-        .ok_or(ServerFnError::Request("notebook not found".to_string()))?;
-    let _ = notebook_notes
-        .remove(&note_id)
-        .ok_or(ServerFnError::Request("note not found".to_string()))?;
+    log::info!("note id: {:?}", &note_id);
 
+    let res = con
+        .query("DELETE type::thing($note_id)")
+        .bind(("note_id", note_id))
+        .await?;
+
+    log::info!("delete response: {:?}", res);
     Ok(())
 }
 
@@ -266,7 +270,7 @@ fn app(cx: Scope) -> Element {
     let mut selected_note = use_state(cx, || None);
     let mut note_summaries: &UseFuture<Result<Vec<Note>, ServerFnError>> =
         use_future(cx, (selected_notebook), |selected_notebook| async move {
-            if let Some(Notebook { id: Some(id), .. }) = selected_notebook.current().as_ref() {
+            if let Some(Notebook { id: id, .. }) = selected_notebook.current().as_ref() {
                 get_note_summaries(id.clone()).await
             } else {
                 Ok(vec![])
@@ -282,23 +286,77 @@ fn app(cx: Scope) -> Element {
         }
     });
 
-    render! {
-        div {
-            class: "flex h-screen text-white",
-            NotebookBar {
-                notebooks: notebooks,
-                selected_notebook: selected_notebook.clone(),
-            },
-            NotesBar {
-                note_summaries: note_summaries,
-                notebooks: notebooks,
-                selected_note: selected_note,
-                selected_notebook: selected_notebook,
-            },
-            NotesView {
-                selected_note: selected_note.clone(),
-                selected_notebook: selected_notebook.clone(),
-                note_summaries: note_summaries,
+    match notebooks.state() {
+        UseFutureState::Complete(_) => {
+            render! {
+                div {
+                    class: "flex h-screen text-white",
+                    NotebookBar {
+                        notebooks: notebooks,
+                        selected_notebook: selected_notebook.clone(),
+                    },
+                    if let Some(selected_notebook) = selected_notebook.current().as_ref() {
+                        rsx! {
+                            NotesBar {
+                                note_summaries: note_summaries,
+                                notebooks: notebooks,
+                                selected_note: selected_note,
+                                selected_notebook: selected_notebook.clone(),
+                            },
+                            NotesView {
+                                notebooks: notebooks,
+                                selected_note: selected_note.clone(),
+                                note_summaries: note_summaries,
+                            }
+                        }
+                    } else {
+                        rsx! {
+                            div {
+                                class: "h-full w-full bg-gray-800 flex items-center justify-center p-8 gap-4 text-gray-400 text-lg",
+                                div {
+                                    class: "flex flex-row items-center",
+                                    svg {
+                                        class: "shrink h-4 px-2",
+                                        xmlns:"http://www.w3.org/2000/svg",
+                                        // these colors are the same as text-gray-400
+                                        stroke: "rgb(156 163 175 / var(--tw-text-opacity))",
+                                        fill: "rgb(156 163 175 / var(--tw-text-opacity))",
+                                        view_box: "0 0 512 512",
+                                        path {
+                                            d: "M512 256A256 256 0 1 0 0 256a256 256 0 1 0 512 0zM231 127c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9l-71 71L376 232c13.3 0 24 10.7 24 24s-10.7 24-24 24l-182.1 0 71 71c9.4 9.4 9.4 24.6 0 33.9s-24.6 9.4-33.9 0L119 273c-9.4-9.4-9.4-24.6 0-33.9L231 127z",
+                                        }
+                                    },
+                                    div {
+                                        "Select a notebook"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        _ => {
+            render! {
+                div {
+                    class: "h-screen w-screen bg-gray-800 flex items-center justify-center p-8 gap-4 text-gray-400 text-lg",
+                    div {
+                        class: "flex flex-row h-8 items-center",
+                        svg {
+                            class: "spinner shrink h-4 px-2",
+                            xmlns: "http://www.w3.org/2000/svg",
+                            stroke: "rgb(156 163 175 / var(--tw-text-opacity))",
+                            fill: "rgb(156 163 175 / var(--tw-text-opacity))",
+                            view_box: "0 0 512 512",
+                            path {
+                                d: "M304 48a48 48 0 1 0 -96 0 48 48 0 1 0 96 0zm0 416a48 48 0 1 0 -96 0 48 48 0 1 0 96 0zM48 304a48 48 0 1 0 0-96 48 48 0 1 0 0 96zm464-48a48 48 0 1 0 -96 0 48 48 0 1 0 96 0zM142.9 437A48 48 0 1 0 75 369.1 48 48 0 1 0 142.9 437zm0-294.2A48 48 0 1 0 75 75a48 48 0 1 0 67.9 67.9zM369.1 437A48 48 0 1 0 437 369.1 48 48 0 1 0 369.1 437z"
+                            }
+                        },
+                        div {
+                            "Loading",
+                        }
+                    }
+                }
             }
         }
     }

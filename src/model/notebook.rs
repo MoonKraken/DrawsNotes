@@ -12,6 +12,24 @@ pub struct Notebook {
     pub count: Option<u32>,
 }
 
+impl Notebook {
+    pub fn new() -> Notebook {
+        Notebook {
+            id: None,
+            name: String::new(),
+            count: None,
+        }
+    }
+
+    pub fn all() -> Notebook {
+        Notebook {
+            id: None,
+            name: "All Notes".to_string(),
+            count: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct NotebookNoteCount {
     pub id: String,
