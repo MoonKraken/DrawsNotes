@@ -73,7 +73,9 @@ pub fn NotebookBar<'a>(
                 if (*creating_notebook.get()) {
                     rsx! {
                         div {
+                            class: "py-1 px-2",
                             input {
+                                class: "w-full bg-gray-700 border border-gray-600 rounded-md shrink focus:outline-none focus:ring-0",
                                 value: "{new_notebook_name}",
                                 onkeydown: submit_notebook,
                                 oninput: move |evt| {
@@ -141,7 +143,7 @@ pub fn NotebookBar<'a>(
                     "Notebooks"
                 },
                 svg {
-                    class: "shrink h-4 pr-2",
+                    class: "shrink h-[20px] pr-2",
                     stroke: "white",
                     fill: "white",
                     xmlns: "http://www.w3.org/2000/svg",
