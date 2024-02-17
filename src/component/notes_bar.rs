@@ -9,7 +9,7 @@ pub fn NotesBar<'a>(
     cx: Scope,
     note_summaries: &'a UseFuture<Result<Vec<Note>, ServerFnError>>,
     notebooks: &'a UseFuture<Result<Vec<Notebook>, ServerFnError>>,
-    selected_note: &'a UseState<Option<Note>>,
+    selected_note: UseState<Option<Note>>,
     selected_notebook: Notebook,
 ) -> Element {
     //apparently these are double references for reasons i don't fully understand

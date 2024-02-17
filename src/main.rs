@@ -15,6 +15,7 @@ use std::{
     time::Duration,
 };
 
+use crate::component::loading::Loading;
 use crate::component::{notebook_bar::NotebookBar, notes_bar::NotesBar, notes_view::NotesView};
 use crate::model::notebook::NotebookNoteCount;
 use dioxus::prelude::*;
@@ -57,6 +58,18 @@ lazy_static! {
 struct Record {
     #[allow(dead_code)]
     id: Thing,
+}
+
+#[server]
+async fn get_note(note_id: String) -> Result<Note, ServerFnError> {
+    let con = DB.get().await;
+    let res: Option<Note> = con
+        .query("SELECT type::string(id) as id, title, content, type::string(notebook) as notebook FROM type::thing($note_id)")
+        .bind(("note_id", note_id))
+        .await?
+        .take(0)?;
+
+    res.ok_or(ServerFnError::ServerError("couldn't get note".to_string()))
 }
 
 #[server]
@@ -234,19 +247,6 @@ async fn get_note_summaries(notebook_id: Option<String>) -> Result<Vec<Note>, Se
     Ok(res)
 }
 
-#[server]
-async fn get_note(notebook_id: String, note_id: String) -> Result<Note, ServerFnError> {
-    let con = DB.get().await;
-    let res: Option<Note> = con
-        .query("SELECT * FROM $table WHERE notebook=$notebook_id AND id=$note_id")
-        .bind(("table", NOTE_TABLE))
-        .bind(("notebook_id", &notebook_id))
-        .bind(("note_id", &note_id))
-        .await?
-        .take(0)?;
-
-    res.ok_or(ServerFnError::ServerError("couldn't get note".to_string()))
-}
 
 #[server]
 async fn delete_note(note_id: String) -> Result<(), ServerFnError> {
@@ -270,7 +270,7 @@ fn app(cx: Scope) -> Element {
     let mut selected_note = use_state(cx, || None);
     let mut note_summaries: &UseFuture<Result<Vec<Note>, ServerFnError>> =
         use_future(cx, (selected_notebook), |selected_notebook| async move {
-            if let Some(Notebook { id: id, .. }) = selected_notebook.current().as_ref() {
+            if let Some(Notebook { id, .. }) = selected_notebook.current().as_ref() {
                 get_note_summaries(id.clone()).await
             } else {
                 Ok(vec![])
@@ -300,7 +300,7 @@ fn app(cx: Scope) -> Element {
                             NotesBar {
                                 note_summaries: note_summaries,
                                 notebooks: notebooks,
-                                selected_note: selected_note,
+                                selected_note: selected_note.clone(),
                                 selected_notebook: selected_notebook.clone(),
                             },
                             NotesView {
@@ -338,24 +338,8 @@ fn app(cx: Scope) -> Element {
         },
         _ => {
             render! {
-                div {
-                    class: "h-screen w-screen bg-gray-800 flex items-center justify-center p-8 gap-4 text-gray-400 text-lg",
-                    div {
-                        class: "flex flex-row h-8 items-center",
-                        svg {
-                            class: "spinner shrink h-4 px-2",
-                            xmlns: "http://www.w3.org/2000/svg",
-                            stroke: "rgb(156 163 175 / var(--tw-text-opacity))",
-                            fill: "rgb(156 163 175 / var(--tw-text-opacity))",
-                            view_box: "0 0 512 512",
-                            path {
-                                d: "M304 48a48 48 0 1 0 -96 0 48 48 0 1 0 96 0zm0 416a48 48 0 1 0 -96 0 48 48 0 1 0 96 0zM48 304a48 48 0 1 0 0-96 48 48 0 1 0 0 96zm464-48a48 48 0 1 0 -96 0 48 48 0 1 0 96 0zM142.9 437A48 48 0 1 0 75 369.1 48 48 0 1 0 142.9 437zm0-294.2A48 48 0 1 0 75 75a48 48 0 1 0 67.9 67.9zM369.1 437A48 48 0 1 0 437 369.1 48 48 0 1 0 369.1 437z"
-                            }
-                        },
-                        div {
-                            "Loading",
-                        }
-                    }
+                Loading {
+                    fullscreen: true,
                 }
             }
         }
