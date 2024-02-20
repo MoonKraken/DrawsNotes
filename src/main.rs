@@ -37,12 +37,10 @@ const NOTEBOOK_TABLE: &str = "notebook";
 lazy_static! {
     static ref DB: AsyncOnce<Surreal<Client>> = {
         AsyncOnce::new(async {
-            log::info!("connect surrealdb client");
             let db: Surreal<Client> = Surreal::new::<Ws>("127.0.0.1:8000")
                 .await
                 .expect("couldn't connect to surrealdb");
 
-            log::info!("use ns");
             db.use_ns("test")
                 .use_db("test")
                 .await
@@ -74,7 +72,6 @@ async fn get_note(note_id: String) -> Result<Note, ServerFnError> {
 
 #[server]
 async fn upsert_note(note: Note) -> Result<String, ServerFnError> {
-    log::info!("upserting note {:?}", &note);
     let con = DB.get().await;
 
     let res: Vec<Record> = if let Some(id) = note.id {
@@ -106,7 +103,6 @@ async fn upsert_note(note: Note) -> Result<String, ServerFnError> {
 
 #[server]
 async fn upsert_notebook(notebook: Notebook) -> Result<String, ServerFnError> {
-    log::info!("upserting notebook {:?}", &notebook);
     let con = DB.get().await;
 
     let res: Vec<Record> = if let Some(id) = notebook.id {
@@ -152,9 +148,6 @@ async fn delete_notebook(notebook: Notebook) -> Result<(), ServerFnError> {
 
 #[server]
 async fn get_notebooks() -> Result<Vec<Notebook>, ServerFnError> {
-    // do we still need this ? this is to get around a dioxus bug
-    // tokio::time::sleep(Duration::from_millis(1000));
-    log::info!("get notebooks");
     let con = DB.get().await;
 
     // really don't want this to be two queries, but this seemed like the lesser of evils
@@ -211,10 +204,6 @@ async fn get_notebooks() -> Result<Vec<Notebook>, ServerFnError> {
 
 #[server]
 async fn get_note_summaries(notebook_id: Option<String>) -> Result<Vec<Note>, ServerFnError> {
-    // do we still need this ? this is to get around a dioxus bug
-    // tokio::time::sleep(Duration::from_millis(200));
-
-    log::info!("getting summaries for notebook {:?}", notebook_id);
     use std::str::FromStr;
     let con = DB.get().await;
 
@@ -240,10 +229,7 @@ async fn get_note_summaries(notebook_id: Option<String>) -> Result<Vec<Note>, Se
         .expect("issue on take")
     };
 
-    log::info!("summaries from db {:?}", &res);
     let res: Vec<Note> = res.into_iter().map(|notedb| notedb.into()).collect();
-
-    log::info!("summaries converted {:?}", &res);
     Ok(res)
 }
 
@@ -252,14 +238,11 @@ async fn get_note_summaries(notebook_id: Option<String>) -> Result<Vec<Note>, Se
 async fn delete_note(note_id: String) -> Result<(), ServerFnError> {
     let con = DB.get().await;
 
-    log::info!("note id: {:?}", &note_id);
-
     let res = con
         .query("DELETE type::thing($note_id)")
         .bind(("note_id", note_id))
         .await?;
 
-    log::info!("delete response: {:?}", res);
     Ok(())
 }
 
@@ -279,10 +262,8 @@ fn app(cx: Scope) -> Element {
 
     use_effect(cx, (selected_notebook,), |(selected_notebook,)| {
         to_owned!(selected_note);
-        log::info!("selected_notebook effect!!!!!");
         async move {
             selected_note.set(None);
-            log::info!("selected note set to None");
         }
     });
 
@@ -296,7 +277,7 @@ fn app(cx: Scope) -> Element {
                         selected_notebook: selected_notebook.clone(),
                     },
                     if let Some(selected_notebook) = selected_notebook.current().as_ref() {
-                        rsx! {
+                        render! {
                             NotesBar {
                                 note_summaries: note_summaries,
                                 notebooks: notebooks,
@@ -310,7 +291,7 @@ fn app(cx: Scope) -> Element {
                             }
                         }
                     } else {
-                        rsx! {
+                        render! {
                             div {
                                 class: "h-full w-full bg-gray-800 flex items-center justify-center p-8 gap-4 text-gray-400 text-lg",
                                 div {

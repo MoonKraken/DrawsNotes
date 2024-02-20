@@ -42,8 +42,6 @@ pub fn NotesView<'a>(
 
     match full_note.state() {
         UseFutureState::Complete(Some(Ok(note))) => {
-            log::info!("note view: {:?}", &note);
-
             render! {
                 div {
                     class:"h-full bg-gray-800 flex flex-col items-center justify-center p-8 gap-4 text-white grow",
@@ -52,7 +50,6 @@ pub fn NotesView<'a>(
                         class: "w-full p-2 bg-gray-700 border border-gray-600 rounded-md shrink focus:outline-none focus:ring-0",
                         value: "{new_title}",
                         oninput: move |evt: Event<FormData>| {
-                            log::info!("note title oninput");
                             new_title.set(evt.value.clone());
                         },
                     },
@@ -61,7 +58,6 @@ pub fn NotesView<'a>(
                         value: "{new_content}",
                         class: "w-full p-2 bg-gray-700 border border-gray-600 rounded-md resize-none grow focus:outline-none focus:ring-0",
                         oninput: move |evt: Event<FormData>| {
-                            log::info!("note title oninput");
                             new_content.set(evt.value.clone());
                         },
                     },
@@ -70,7 +66,6 @@ pub fn NotesView<'a>(
                         disabled: &note.title == new_title.current().as_ref() && &note.content == new_content.current().as_ref(),
                         onclick: move |_| {
                             cx.spawn({
-                                log::info!("save spawned");
                                 to_owned!(new_content);
                                 to_owned!(new_title);
                                 to_owned!(note_summaries);
@@ -82,10 +77,8 @@ pub fn NotesView<'a>(
                                         content: new_content.current().as_ref().clone(),
                                         notebook: note.notebook.clone(),
                                     };
-                                    log::info!("upserting note... {:?}", &new_note);
                                     let _ = upsert_note(new_note).await;
                                     note_summaries.restart();
-                                    log::info!("note upserted");
                                 }
                             })
                         },
@@ -95,21 +88,17 @@ pub fn NotesView<'a>(
                         class: "text-red-500",
                         onclick: move |_| {
                             cx.spawn({
-                                log::info!("delete spawned");
                                 to_owned!(note);
                                 to_owned!(note_summaries);
                                 to_owned!(notebooks);
                                 to_owned!(selected_note);
                                 async move {
-                                    log::info!("deleting note... {:?}", &note);
                                     if let Some(id) = note.id {
                                         let res = delete_note(id).await;
-                                        log::info!("note deletion response: {:?}", res);
                                         if let Ok(()) = res {
                                             selected_note.set(None);
                                             note_summaries.restart();
                                             notebooks.restart();
-                                            log::info!("note deleted");
                                         } else {
                                             log::error!("error deleting note");
                                         }

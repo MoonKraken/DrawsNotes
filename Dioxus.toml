@@ -16,7 +16,7 @@ asset_dir = "public"
 [web.app]
 
 # HTML title tag content
-title = "dioxus | ⛺"
+title = "Draws Notes"
 
 [web.watcher]
 

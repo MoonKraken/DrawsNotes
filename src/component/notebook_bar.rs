@@ -17,9 +17,7 @@ pub fn NotebookBar<'a>(
 
     let submit_notebook = move |ev: Event<KeyboardData>| {
         if ev.key() == Key::Enter {
-            log::info!("onkeydown");
             cx.spawn({
-                log::info!("spawned");
                 to_owned!(notebooks);
                 to_owned!(new_notebook_name);
                 creating_notebook.set(false);
@@ -58,7 +56,6 @@ pub fn NotebookBar<'a>(
                             UNSELECTED_NOTE_STYLE
                         },
                         onclick: move |_| {
-                            log::info!("notebook onclick");
                             selected_notebook.set(Some(notebook.clone()))
                         },
                         div {
@@ -79,7 +76,6 @@ pub fn NotebookBar<'a>(
                                 value: "{new_notebook_name}",
                                 onkeydown: submit_notebook,
                                 oninput: move |evt| {
-                                    log::info!("oninput");
                                     new_notebook_name.set(evt.value.clone())
                                 },
                             }
@@ -88,7 +84,7 @@ pub fn NotebookBar<'a>(
                 },
             },
         },
-        _ => rsx! {"loading"},
+        _ => rsx! {"error"},
     };
 
     render! {
@@ -101,7 +97,6 @@ pub fn NotebookBar<'a>(
                     UNSELECTED_ALL_STYLE
                 },
                 onclick: move |_| {
-                    log::info!("all notes onclick");
                     selected_notebook.set(Some(Notebook::all()));
                 },
                 svg {

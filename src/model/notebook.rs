@@ -13,14 +13,6 @@ pub struct Notebook {
 }
 
 impl Notebook {
-    pub fn new() -> Notebook {
-        Notebook {
-            id: None,
-            name: String::new(),
-            count: None,
-        }
-    }
-
     pub fn all() -> Notebook {
         Notebook {
             id: None,

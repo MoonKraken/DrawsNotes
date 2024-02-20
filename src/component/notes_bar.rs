@@ -41,11 +41,9 @@ pub fn NotesBar<'a>(
                                 to_owned!(note_summaries);
                                 to_owned!(notebooks);
                                 async move {
-                                    log::info!("upserting...");
                                     if let Some(notebook_id) = selected_notebook.id {
                                         upsert_note(Note::new(notebook_id)).await;
                                         note_summaries.restart();
-                                        log::info!("upserted.");
                                         // this is really really inefficient, it'd be better to just increment
                                         // the count locally, but for now reload the entire notebooks future
                                         // to ensure the note count is updated
@@ -71,7 +69,6 @@ pub fn NotesBar<'a>(
                             UNSELECTED_NOTE_STYLE
                         },
                         onclick: move |_| {
-                            log::info!("note onclick");
                             selected_note.set(Some(note.clone()))
                         },
                         div {
