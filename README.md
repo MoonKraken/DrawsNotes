@@ -1,7 +1,10 @@
 <picture>
 <img src="https://raw.githubusercontent.com/MoonKraken/DrawsNotes/main/demo.gif" />
 </picture>
-More details about the creation of this project can be found in this video: https://youtu.be/Pr6T0Phjvgc
+
+# DrawsNotes
+
+More details about the creation of this project can be found in [this video](https://youtu.be/Pr6T0Phjvgc).
 
 A very simple note-taking app built with an all-Rust stack: Dioxus for the frontend and backend (Axum under the hood on the backend), and SurrealDB as the database.
 
