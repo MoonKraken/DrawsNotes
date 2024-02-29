@@ -1,5 +1,5 @@
 <picture>
-<img src="https://raw.githubusercontent.com/Me163/DrawsNotes/main/demo.gif" />
+<img src="https://raw.githubusercontent.com/MoonKraken/DrawsNotes/main/demo.gif" />
 </picture>
 
 1. `cargo install dioxus-cli`
