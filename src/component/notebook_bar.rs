@@ -1,31 +1,24 @@
 use dioxus::{html::input_data::keyboard_types::Key, prelude::*};
-use dioxus_fullstack::prelude::*;
 
 use crate::{get_notebooks, model::notebook::Notebook, upsert_notebook, component::counter::Counter};
 
 #[component]
-pub fn NotebookBar<'a>(
-    cx: Scope,
-    notebooks: &'a UseFuture<Result<Vec<Notebook>, ServerFnError>>,
-    selected_notebook: UseState<Option<Notebook>>,
+pub fn NotebookBar(
+    notebooks: Resource<Result<Vec<Notebook>, ServerFnError>>,
+    selected_notebook: Signal<Option<Notebook>>,
 ) -> Element {
-    let new_notebook_name: &UseState<String> = use_state(cx, || "".to_string());
-    let creating_notebook = use_state(cx, || false);
-
-    //apparently this is a double reference for reasons i don't fully understand
-    let notebooks: &UseFuture<Result<Vec<Notebook>, ServerFnError>> = *notebooks;
+    let mut new_notebook_name: Signal<String> = use_signal(|| "".to_string());
+    let mut creating_notebook = use_signal(|| false);
 
     let submit_notebook = move |ev: Event<KeyboardData>| {
         if ev.key() == Key::Enter {
-            cx.spawn({
-                to_owned!(notebooks);
-                to_owned!(new_notebook_name);
+            spawn({
                 creating_notebook.set(false);
 
                 async move {
                     let _ = upsert_notebook(Notebook {
                         id: None,
-                        name: new_notebook_name.current().to_string(),
+                        name: new_notebook_name().to_string(),
                         count: None,
                     })
                     .await;
@@ -40,13 +33,13 @@ pub fn NotebookBar<'a>(
 
     const SELECTED_ALL_STYLE: &str = "flex flex-row content-center items-center bg-gray-900";
     const UNSELECTED_ALL_STYLE: &str = "flex flex-row content-center items-center";
-    let notebooks_list = match notebooks.value() {
+    let notebooks_list = match notebooks() {
         Some(Ok(list)) => rsx! {
             div {
                 class: "flex flex-col justify-h w-[200px] overflow-hidden",
                 for notebook in list {
                     div {
-                        class: if let Some(selected) = selected_notebook.current().as_ref() {
+                        class: if let Some(selected) = selected_notebook() {
                             if selected.id == notebook.id {
                                 SELECTED_NOTE_STYLE
                             } else {
@@ -67,31 +60,29 @@ pub fn NotebookBar<'a>(
                         },
                     }
                 },
-                if (*creating_notebook.get()) {
-                    rsx! {
-                        div {
-                            class: "py-1 px-2",
-                            input {
-                                class: "w-full bg-gray-700 border border-gray-600 rounded-md shrink focus:outline-none focus:ring-0",
-                                value: "{new_notebook_name}",
-                                onkeydown: submit_notebook,
-                                oninput: move |evt| {
-                                    new_notebook_name.set(evt.value.clone())
-                                },
-                            }
-                        },
-                    }
+                if (creating_notebook()) {
+                    div {
+                        class: "py-1 px-2",
+                        input {
+                            class: "w-full bg-gray-700 border border-gray-600 rounded-md shrink focus:outline-none focus:ring-0",
+                            value: "{new_notebook_name}",
+                            onkeydown: submit_notebook,
+                            oninput: move |evt| {
+                                new_notebook_name.set(evt.value())
+                            },
+                        }
+                    },
                 },
             },
-        },
-        _ => rsx! {"error"},
+        }?,
+        _ => rsx! {div {"Error"}}?,
     };
 
-    render! {
+    rsx! {
         div {
             class: "flex flex-col bg-gray-800 cursor-default",
             div {
-                class: if let Some(Notebook {id: None, ..}) = selected_notebook.current().as_ref() {
+                class: if let Some(Notebook {id: None, ..}) = selected_notebook() {
                     SELECTED_ALL_STYLE
                 } else {
                     UNSELECTED_ALL_STYLE
@@ -113,8 +104,8 @@ pub fn NotebookBar<'a>(
                     class: "grow",
                     "All Notes",
                 },
-                if let Some(Ok(nb)) = notebooks.value() {
-                    rsx! {
+                if let Some(Ok(nb)) = notebooks() {
+                    Fragment {
                         Counter {
                             count: nb.iter().map(|n| n.count.unwrap_or(0)).sum()
                         }
@@ -151,7 +142,7 @@ pub fn NotebookBar<'a>(
                     }
                 },
             },
-            notebooks_list,
+            {notebooks_list},
         }
     }
 }

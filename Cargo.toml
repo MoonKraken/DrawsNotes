@@ -7,16 +7,18 @@ edition = "2021"
 
 [dependencies]
 async_once = "0.2.6"
-dioxus = "0.4"
-dioxus-fullstack = "0.4"
-dioxus-logger = "0.4"
+dioxus = { git = "https://github.com/DioxusLabs/dioxus", branch = "main", package = "dioxus", features= ["fullstack", "router"] }
 lazy_static = "1.4.0"
 log = "0.4.20"
+manganis = "0.2.2"
 serde = "1.0.193"
 surrealdb = {version = "1.2", optional = true}
 tokio = "1.35.1"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+tracing-wasm = "0.2.1"
 
 [features]
 default = []
-ssr = ["dioxus-fullstack/axum", "dep:surrealdb"]
-web = ["dioxus-fullstack/web"]
+server = ["dioxus/server", "dep:surrealdb"]
+web = ["dioxus/web"]

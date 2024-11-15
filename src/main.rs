@@ -2,11 +2,12 @@
 use async_once::AsyncOnce;
 use lazy_static::lazy_static;
 use serde::Deserialize;
-#[cfg(feature = "ssr")]
+use server_fn::error::NoCustomError;
+#[cfg(feature = "server")]
 use surrealdb::engine::remote::ws::Client;
-#[cfg(feature = "ssr")]
+#[cfg(feature = "server")]
 use surrealdb::sql::Thing;
-#[cfg(feature = "ssr")]
+#[cfg(feature = "server")]
 use surrealdb::{engine::remote::ws::Ws, opt::auth::Root, Surreal};
 
 use std::{
@@ -19,21 +20,25 @@ use crate::component::loading::Loading;
 use crate::component::{notebook_bar::NotebookBar, notes_bar::NotesBar, notes_view::NotesView};
 use crate::model::notebook::NotebookNoteCount;
 use dioxus::prelude::*;
-use dioxus_fullstack::prelude::{server_fn::error::ServerFnErrorErr, *};
-use log::LevelFilter;
+// use dioxus_logger::tracing::Level;
 use model::{note::Note, notebook::Notebook};
 pub mod component;
 pub mod model;
 
+// const _TAILWIND_URL: &str = ::manganis::mg!(file("assets/tailwind.css"));
 fn main() {
-    dioxus_logger::init(LevelFilter::Info).expect("failed to init logger");
-    LaunchBuilder::new(app).launch();
+    #[cfg(feature = "web")]
+    tracing_wasm::set_as_global_default();
+
+    #[cfg(feature = "server")]
+    tracing_subscriber::fmt::init();
+    launch(app);
 }
 
 const NOTE_TABLE: &str = "note";
 const NOTEBOOK_TABLE: &str = "notebook";
 
-#[cfg(feature = "ssr")]
+#[cfg(feature = "server")]
 lazy_static! {
     static ref DB: AsyncOnce<Surreal<Client>> = {
         AsyncOnce::new(async {
@@ -51,7 +56,7 @@ lazy_static! {
     };
 }
 
-#[cfg(feature = "ssr")]
+#[cfg(feature = "server")]
 #[derive(Debug, Deserialize)]
 struct Record {
     #[allow(dead_code)]
@@ -210,7 +215,7 @@ async fn get_note_summaries(notebook_id: Option<String>) -> Result<Vec<Note>, Se
     // probably a way to make this more concise
     let res: Vec<Note> = if let Some(notebook_id) = notebook_id {
         let notebook_thing = Thing::from_str(&notebook_id)
-            .map_err(|_| ServerFnError::ServerError("error making thing".to_string()))?;
+            .map_err(|_| ServerFnError::<NoCustomError>::ServerError("error making thing".to_string()))?;
         con
         .query("SELECT type::string(id) as id, title, string::slice(content, 0, 40) as content, type::string(notebook) as notebook FROM type::table($table) WHERE notebook=type::thing($notebook_thing);")
         .bind(("table", NOTE_TABLE))
@@ -246,38 +251,35 @@ async fn delete_note(note_id: String) -> Result<(), ServerFnError> {
     Ok(())
 }
 
-fn app(cx: Scope) -> Element {
-    let notebooks: &UseFuture<Result<Vec<Notebook>, ServerFnError>> =
-        use_future(cx, (), |_| get_notebooks());
-    let mut selected_notebook: &UseState<Option<Notebook>> = use_state(cx, || None);
-    let mut selected_note = use_state(cx, || None);
-    let mut note_summaries: &UseFuture<Result<Vec<Note>, ServerFnError>> =
-        use_future(cx, (selected_notebook), |selected_notebook| async move {
-            if let Some(Notebook { id, .. }) = selected_notebook.current().as_ref() {
+fn app() -> Element {
+    let notebooks: Resource<Result<Vec<Notebook>, ServerFnError>> =
+        use_resource(|| get_notebooks());
+    let mut selected_notebook: Signal<Option<Notebook>> = use_signal(|| None);
+    let mut selected_note = use_signal(|| None);
+    let mut note_summaries: Resource<Result<Vec<Note>, ServerFnError>> =
+        use_resource(move || async move {
+            if let Some(Notebook { id, .. }) = selected_notebook() {
                 get_note_summaries(id.clone()).await
             } else {
                 Ok(vec![])
             }
         });
 
-    use_effect(cx, (selected_notebook,), |(selected_notebook,)| {
-        to_owned!(selected_note);
-        async move {
-            selected_note.set(None);
-        }
+    use_effect(move || {
+        selected_note.set(None);
     });
 
-    match notebooks.state() {
-        UseFutureState::Complete(_) => {
-            render! {
+    match notebooks.state()() {
+        UseResourceState::Ready => {
+            rsx! {
                 div {
                     class: "flex h-screen text-white",
                     NotebookBar {
                         notebooks: notebooks,
                         selected_notebook: selected_notebook.clone(),
                     },
-                    if let Some(selected_notebook) = selected_notebook.current().as_ref() {
-                        render! {
+                    if let Some(selected_notebook) = selected_notebook() {
+                        Fragment {
                             NotesBar {
                                 note_summaries: note_summaries,
                                 notebooks: notebooks,
@@ -291,7 +293,7 @@ fn app(cx: Scope) -> Element {
                             }
                         }
                     } else {
-                        render! {
+                        Fragment {
                             div {
                                 class: "h-full w-full bg-gray-800 flex items-center justify-center p-8 gap-4 text-gray-400 text-lg",
                                 div {
@@ -318,7 +320,7 @@ fn app(cx: Scope) -> Element {
             }
         },
         _ => {
-            render! {
+            rsx! {
                 Loading {
                     fullscreen: true,
                 }

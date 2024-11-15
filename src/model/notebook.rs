@@ -1,8 +1,8 @@
-#[cfg(feature = "ssr")]
+#[cfg(feature = "server")]
 use std::str::FromStr;
 
 use serde::{Serialize, Deserialize};
-#[cfg(feature = "ssr")]
+#[cfg(feature = "server")]
 use surrealdb::sql::Thing;
 
 #[derive(Debug, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]

@@ -1,11 +1,10 @@
-#[cfg(feature = "ssr")]
+#[cfg(feature = "server")]
 use std::str::FromStr;
 
-use dioxus::prelude::Dep;
 use serde::{Serialize, Deserialize};
-#[cfg(feature = "ssr")]
+#[cfg(feature = "server")]
 use surrealdb::sql::Id;
-#[cfg(feature = "ssr")]
+#[cfg(feature = "server")]
 use surrealdb::sql::Thing;
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]

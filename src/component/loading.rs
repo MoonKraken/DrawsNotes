@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 
 #[component]
-pub fn Loading(cx: Scope, fullscreen: bool) -> Element {
+pub fn Loading(fullscreen: bool) -> Element {
     let wh = if fullscreen.clone() {
         "h-screen w-screen"
     } else {
@@ -10,7 +10,7 @@ pub fn Loading(cx: Scope, fullscreen: bool) -> Element {
 
     let base_css = "bg-gray-800 flex items-center justify-center p-8 gap-4 text-gray-400 text-lg";
     let css = format!("{} {}", base_css, wh);
-    render! {
+    rsx! {
         div {
             class: "{css}",
             div {

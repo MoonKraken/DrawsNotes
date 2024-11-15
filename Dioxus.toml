@@ -4,14 +4,14 @@
 name = "Tailwind CSS + Dioxus"
 
 # Dioxus App Default Platform
-# desktop, web, mobile, ssr
-default_platform = "web"
+# Dioxus App Default Platform
+default_platform = "fullstack"
 
 # `build` & `serve` dist path
 out_dir = "dist"
 
 # resource (public) file folder
-asset_dir = "public"
+asset_dir = "assets"
 
 [web.app]
 
@@ -24,26 +24,20 @@ title = "Draws Notes"
 reload_html = true
 
 # which files or dirs will be watcher monitoring
-watch_path = ["src", "public"]
-
-# uncomment line below if using Router
-# index_on_404 = true
+watch_path = ["src", "assets"]
 
 # include `assets` in web platform
 [web.resource]
 
 # CSS style file
-style = ["tailwind.css"]
+#
+style = ["/assets/tailwind.css"]
 
 # Javascript code file
 script = []
 
 [web.resource.dev]
 
-# serve: [dev-server] only
-
-# CSS style file
-style = []
-
+# Javascript code file
 # Javascript code file
 script = []
