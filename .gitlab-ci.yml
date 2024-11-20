@@ -17,8 +17,7 @@ build:docker:
   services:
     - docker:dind
   before_script:
-    - apk add --no-cache curl jq python3 py3-pip
-    - pip install awscli
+    - apk add --no-cache curl jq python3 py3-pip aws-cli
     - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
   script:
     - docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$CI_COMMIT_SHA .
