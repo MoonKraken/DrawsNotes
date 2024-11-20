@@ -5,3 +5,5 @@
 *.db
 .cargo
 .idea
+**/.terraform*
+**/*.tfstate*
