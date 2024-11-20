@@ -14,7 +14,7 @@ COPY . .
 RUN dx build --release
 
 # Final stage
-FROM debian:buster-slim
+FROM debian:bookworm-slim
 
 # Install necessary dependencies for running the server
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
