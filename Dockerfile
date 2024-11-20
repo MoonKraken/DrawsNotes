@@ -1,8 +1,8 @@
 # Build stage
-FROM rust:latest as builder
+FROM rust:latest AS builder
 
 # Install dioxus-cli
-RUN cargo install dioxus-cli
+RUN cargo install --git https://github.com/DioxusLabs/dioxus dioxus-cli --locked
 
 # Set the working directory
 WORKDIR /usr/src/app
