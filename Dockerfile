@@ -1,0 +1,32 @@
+# Build stage
+FROM rust:latest as builder
+
+# Install dioxus-cli
+RUN cargo install dioxus-cli
+
+# Set the working directory
+WORKDIR /usr/src/app
+
+# Copy the entire project
+COPY . .
+
+# Build the project
+RUN dx build --release
+
+# Final stage
+FROM debian:buster-slim
+
+# Install necessary dependencies for running the server
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+
+# Set the working directory
+WORKDIR /app
+
+# Copy the entire web directory from the builder stage
+COPY --from=builder /usr/src/app/target/dx/DrawsNotes/release/web ./
+
+# Expose the port your server listens on (adjust if necessary)
+EXPOSE 8080
+
+# Run the server
+CMD ["./server"]
