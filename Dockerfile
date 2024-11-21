@@ -1,7 +1,13 @@
 # Build stage
-FROM rust:latest AS builder
+FROM rust:alpine AS builder
 
-# Install dioxus-cli
+# Install build dependencies and dioxus-cli
+# Install build dependencies, dioxus-cli, and static OpenSSL libraries
+RUN apk add --no-cache musl-dev git openssl-dev openssl-libs-static
+
+# Set environment variables for static linking
+ENV OPENSSL_STATIC=1
+ENV OPENSSL_DIR=/usr
 RUN cargo install --git https://github.com/DioxusLabs/dioxus dioxus-cli --locked
 
 # Set the working directory
@@ -14,10 +20,10 @@ COPY . .
 RUN dx build --release
 
 # Final stage
-FROM debian:bookworm-slim
+FROM alpine:latest
 
 # Install necessary dependencies for running the server
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache ca-certificates
 
 # Set the working directory
 WORKDIR /app
