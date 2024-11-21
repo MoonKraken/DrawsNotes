@@ -9,6 +9,7 @@ use surrealdb::engine::remote::ws::Client;
 use surrealdb::sql::Thing;
 #[cfg(feature = "server")]
 use surrealdb::{engine::remote::ws::Ws, opt::auth::Root, Surreal};
+use tracing::{debug, instrument};
 
 use std::{
     collections::{HashMap, HashSet},
@@ -45,15 +46,18 @@ lazy_static! {
     static ref DB: AsyncOnce<Surreal<Client>> = {
         AsyncOnce::new(async {
             let surrealdb_url = env::var("SURREALDB_URL").unwrap_or_else(|_| "127.0.0.1:8000".to_string());
+            debug!("Connecting to SurrealDB at {:?}", surrealdb_url);
             let db: Surreal<Client> = Surreal::new::<Ws>(&surrealdb_url)
                 .await
                 .expect("couldn't connect to surrealdb");
 
+            debug!("Connected to SurrealDB Successfully");
             db.use_ns("test")
                 .use_db("test")
                 .await
                 .expect("could not use ns and db");
 
+            debug!("Switched to namespace and db successfully");
             db
         })
     };
@@ -66,6 +70,7 @@ struct Record {
     id: Thing,
 }
 
+#[instrument(level="debug")]
 #[server]
 async fn get_note(note_id: String) -> Result<Note, ServerFnError> {
     let con = DB.get().await;
@@ -78,6 +83,7 @@ async fn get_note(note_id: String) -> Result<Note, ServerFnError> {
     res.ok_or(ServerFnError::ServerError("couldn't get note".to_string()))
 }
 
+#[instrument(level="debug")]
 #[server]
 async fn upsert_note(note: Note) -> Result<String, ServerFnError> {
     let con = DB.get().await;
@@ -109,6 +115,7 @@ async fn upsert_note(note: Note) -> Result<String, ServerFnError> {
     }
 }
 
+#[instrument(level="debug")]
 #[server]
 async fn upsert_notebook(notebook: Notebook) -> Result<String, ServerFnError> {
     let con = DB.get().await;
@@ -154,6 +161,7 @@ async fn delete_notebook(notebook: Notebook) -> Result<(), ServerFnError> {
     Ok(())
 }
 
+#[instrument(level="debug")]
 #[server]
 async fn get_notebooks() -> Result<Vec<Notebook>, ServerFnError> {
     let con = DB.get().await;
