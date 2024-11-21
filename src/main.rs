@@ -71,6 +71,12 @@ struct Record {
 }
 
 #[instrument(level="debug")]
+#[server(HealthCheckType, "/api", "GetJson", "health")]
+async fn health_check() -> Result<(), ServerFnError> {
+    Ok(())
+}
+
+#[instrument(level="debug")]
 #[server]
 async fn get_note(note_id: String) -> Result<Note, ServerFnError> {
     let con = DB.get().await;

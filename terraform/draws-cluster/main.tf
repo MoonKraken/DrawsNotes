@@ -86,6 +86,10 @@ resource "aws_ecs_task_definition" "draws_task" {
         {
           name  = "SURREALDB_URL",
           value = var.surrealdb_host
+        },
+        {
+          name  = "RUST_LOG",
+          value = "debug"
         }
       ]
       logConfiguration = {
@@ -154,7 +158,7 @@ resource "aws_lb_target_group" "draws" {
     healthy_threshold   = 2
     interval            = 30
     matcher            = "200"
-    path               = "/health"  # Adjust this to a valid health check endpoint
+    path               = "/api/health"
     port               = "traffic-port"
     timeout            = 5
     unhealthy_threshold = 2
