@@ -36,6 +36,35 @@ module "surrealdb_ecs" {
   }
 }
 
+# Create IAM role for ECS task execution
+resource "aws_iam_role" "ecs_task_execution_role" {
+  name = "ecs_task_execution_role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# Attach the necessary policy for CloudWatch Logs
+resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+resource "aws_cloudwatch_log_group" "surrealdb_logs" {
+  name              = "/ecs/surrealdb"
+  retention_in_days = 30  # You can adjust the retention period as needed
+}
+
 # Add the task definition
 resource "aws_ecs_task_definition" "surrealdb_task" {
   family                   = "surrealdb"
@@ -43,6 +72,7 @@ resource "aws_ecs_task_definition" "surrealdb_task" {
   network_mode            = "awsvpc"
   cpu                     = 256
   memory                  = 512
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
 
   container_definitions = jsonencode([
     {
@@ -51,7 +81,7 @@ resource "aws_ecs_task_definition" "surrealdb_task" {
       cpu       = 256
       memory    = 512
       essential = true
-      command   = ["start", "--log", "debug"]
+      command   = ["start", "--unauthenticated"]
       portMappings = [
         {
           containerPort = 8000
@@ -59,6 +89,14 @@ resource "aws_ecs_task_definition" "surrealdb_task" {
           protocol      = "tcp"
         }
       ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.surrealdb_logs.name
+          awslogs-region        = "us-west-2"
+          awslogs-stream-prefix = "ecs"
+        }
+      }
     }
   ])
 }
@@ -97,7 +135,7 @@ resource "aws_lb" "surrealdb" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [module.alb_security_group.security_group_id]
-  subnets            = var.public_subnets
+  subnets            = var.private_subnets
 
   tags = {
     Environment = "production"

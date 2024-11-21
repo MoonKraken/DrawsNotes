@@ -59,6 +59,10 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+resource "aws_cloudwatch_log_group" "draws_logs" {
+  name              = "/ecs/draws"
+  retention_in_days = 30  # You can adjust the retention period as needed
+}
 # Add the task definition
 resource "aws_ecs_task_definition" "draws_task" {
   family                   = "draws"
@@ -74,11 +78,24 @@ resource "aws_ecs_task_definition" "draws_task" {
       image = "${aws_ecr_repository.draws_ecr_repo.repository_url}:latest"  # Use the ECR repo URL
       portMappings = [
         {
-          containerPort = 3000
-          hostPort      = 3000
+          containerPort = 8080
+          hostPort      = 8080
         }
       ]
-      # Add other container settings as needed
+      environment = [
+        {
+          name  = "SURREALDB_URL",
+          value = var.surrealdb_host
+        }
+      ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.draws_logs.name
+          awslogs-region        = "us-west-2"
+          awslogs-stream-prefix = "ecs"
+        }
+      }
     }
   ])
 }
@@ -127,7 +144,7 @@ resource "aws_lb" "draws" {
 # Create ALB target group
 resource "aws_lb_target_group" "draws" {
   name        = "draws-target-group"
-  port        = 3000
+  port        = 8080
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
   target_type = "ip"
@@ -171,7 +188,7 @@ resource "aws_ecs_service" "draws_service" {
   load_balancer {
     target_group_arn = aws_lb_target_group.draws.arn
     container_name   = "draws"
-    container_port   = 3000
+    container_port   = 8080
   }
 
   task_definition = aws_ecs_task_definition.draws_task.arn

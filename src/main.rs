@@ -38,11 +38,14 @@ fn main() {
 const NOTE_TABLE: &str = "note";
 const NOTEBOOK_TABLE: &str = "notebook";
 
+use std::env;
+
 #[cfg(feature = "server")]
 lazy_static! {
     static ref DB: AsyncOnce<Surreal<Client>> = {
         AsyncOnce::new(async {
-            let db: Surreal<Client> = Surreal::new::<Ws>("127.0.0.1:8000")
+            let surrealdb_url = env::var("SURREALDB_URL").unwrap_or_else(|_| "127.0.0.1:8000".to_string());
+            let db: Surreal<Client> = Surreal::new::<Ws>(&surrealdb_url)
                 .await
                 .expect("couldn't connect to surrealdb");
 

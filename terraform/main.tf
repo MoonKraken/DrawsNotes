@@ -17,4 +17,5 @@ module "draws-cluster" {
   vpc_id          = module.networking.vpc_id
   private_subnets = module.networking.private_subnets
   public_subnets = module.networking.public_subnets
+  surrealdb_host = module.surrealdb.surrealdb_service_endpoint
 }
