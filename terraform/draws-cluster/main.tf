@@ -14,6 +14,15 @@ module "app_security_group" {
       cidr_blocks = "0.0.0.0/0"
     }
   ]
+
+  ingress_with_source_security_group_id = [
+    {
+      from_port                = 8080
+      to_port                  = 8080
+      protocol                 = "tcp"
+      source_security_group_id = module.alb_security_group.security_group_id
+    }
+  ]
 }
 
 # ECS Cluster

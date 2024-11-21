@@ -11,7 +11,7 @@ module "surrealdb_security_group" {
       from_port                = 8000
       to_port                  = 8000
       protocol                 = "tcp"
-      source_security_group_id = var.app_security_group_id
+      source_security_group_id = module.alb_security_group.security_group_id
     }
   ]
 
@@ -132,7 +132,7 @@ module "alb_security_group" {
 # Create the ALB
 resource "aws_lb" "surrealdb" {
   name               = "surrealdb-alb"
-  internal           = false
+  internal           = true
   load_balancer_type = "application"
   security_groups    = [module.alb_security_group.security_group_id]
   subnets            = var.private_subnets
