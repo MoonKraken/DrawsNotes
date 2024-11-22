@@ -1,6 +1,12 @@
 # Build stage
 FROM rust:slim-bookworm AS builder
 
+# Install system dependencies for OpenSSL and pkg-config
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install dioxus-cli
 RUN cargo install --git https://github.com/DioxusLabs/dioxus dioxus-cli --locked
 
