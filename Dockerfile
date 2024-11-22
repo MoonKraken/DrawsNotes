@@ -31,6 +31,8 @@ WORKDIR /app
 # Copy the entire web directory from the builder stage
 COPY --from=builder /usr/src/app/target/dx/DrawsNotes/release/web ./
 
+ENV PORT=8080
+ENV IP=0.0.0.0
 # Expose the port your server listens on (adjust if necessary)
 EXPOSE 8080
 

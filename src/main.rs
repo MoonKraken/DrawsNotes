@@ -33,6 +33,8 @@ fn main() {
 
     #[cfg(feature = "server")]
     tracing_subscriber::fmt::init();
+
+    debug!("debug logging enabled!");
     launch(app);
 }
 
