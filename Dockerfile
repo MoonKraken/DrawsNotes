@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:latest AS builder
+FROM rust:slim-bookworm AS builder
 
 # Install dioxus-cli
 RUN cargo install --git https://github.com/DioxusLabs/dioxus dioxus-cli --locked
