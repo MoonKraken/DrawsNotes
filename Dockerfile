@@ -5,6 +5,9 @@ FROM rust:slim-bookworm AS builder
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
+    curl \
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 # Install dioxus-cli
@@ -15,6 +18,9 @@ WORKDIR /usr/src/app
 
 # Copy the entire project
 COPY . .
+
+# Tailwind 💨
+RUN npx tailwindcss -i ./input.css -o ./assets/tailwind.css
 
 # Build the project
 RUN dx build --release
